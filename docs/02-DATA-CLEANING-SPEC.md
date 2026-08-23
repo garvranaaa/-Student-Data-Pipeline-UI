@@ -1,0 +1,442 @@
+# Data Cleaning Specification
+
+## 1. Purpose
+
+This document defines the exact cleaning behavior for the Student Data Pipeline.
+
+The cleaning process must be deterministic and explainable.
+
+Do not use AI/LLM-based correction.
+
+---
+
+# 2. Actual Supplied Dataset
+
+The supplied dataset contains:
+
+```text
+3,000 rows
+7 columns
+```
+
+Columns:
+
+```text
+Name
+Gender
+Grade
+Math
+Science
+English
+Total
+```
+
+The supplied dataset currently contains no null values.
+
+However, the application must still handle missing values because missing-value handling is an explicit assessment requirement.
+
+---
+
+# 3. Column Name Normalization
+
+Before processing:
+
+1. Trim whitespace.
+2. Normalize case where appropriate.
+3. Map harmless variations to canonical names.
+
+Canonical schema:
+
+```text
+Name
+Gender
+Grade
+Math
+Science
+English
+Total
+```
+
+If required columns are missing, stop processing and display a clear error.
+
+Do not silently create missing required columns.
+
+---
+
+# 4. Name Normalization
+
+The supplied dataset intentionally contains formatting inconsistencies.
+
+Examples include:
+
+```text
+Aditi
+ADITI
+"Aditi"
+Aditi'
+```
+
+Safe normalization should:
+
+1. Trim leading/trailing whitespace.
+2. Remove surrounding quotation marks.
+3. Remove obvious stray apostrophe characters.
+4. Collapse repeated whitespace.
+5. Normalize casing to a consistent display format.
+
+Example:
+
+```text
+"  ADITI'  "
+```
+
+becomes:
+
+```text
+Aditi
+```
+
+Do not perform aggressive fuzzy matching.
+
+Do not assume two students with the same normalized name are duplicates.
+
+---
+
+# 5. Gender Normalization
+
+The supplied dataset contains variants including:
+
+```text
+M
+m
+Male
+male
+1
+
+F
+f
+Female
+female
+0
+```
+
+Normalize to:
+
+```text
+Male
+Female
+```
+
+Mapping:
+
+```text
+M     → Male
+m     → Male
+Male  → Male
+male  → Male
+1     → Male
+
+F       → Female
+f       → Female
+Female  → Female
+female  → Female
+0       → Female
+```
+
+Unknown values must not be silently guessed.
+
+They should be flagged as invalid/unknown according to the application's validation policy.
+
+---
+
+# 6. Grade Normalization
+
+The dataset contains:
+
+```text
+1
+2
+...
+12
+```
+
+and representations such as:
+
+```text
+Grade 1
+Grade 2
+...
+Grade 12
+```
+
+Extract the numeric grade.
+
+Examples:
+
+```text
+"Grade 11" → 11
+"11"       → 11
+```
+
+Validate:
+
+```text
+1 <= Grade <= 12
+```
+
+Invalid grades should be flagged rather than silently converted to a random value.
+
+---
+
+# 7. Marks Normalization
+
+The supplied dataset contains both plain numeric values and strings containing the word "marks".
+
+Examples:
+
+```text
+47
+28 marks
+92 marks
+46
+```
+
+For each subject:
+
+```text
+Math
+Science
+English
+```
+
+extract the numeric value.
+
+Examples:
+
+```text
+"28 marks" → 28
+"92 marks" → 92
+"46"       → 46
+```
+
+Convert the result to a numeric value.
+
+Validate:
+
+```text
+0 <= marks <= 100
+```
+
+Values outside this range are invalid.
+
+Non-numeric values are invalid.
+
+Do not silently convert invalid academic marks to zero.
+
+---
+
+# 8. Missing Values
+
+Missing values must be detected even though the supplied dataset currently has none.
+
+For required scoring fields:
+
+```text
+Math
+Science
+English
+```
+
+do not invent a score.
+
+A missing/invalid mark should result in the record being classified as invalid for shortlisting unless a clearly documented alternative strategy is implemented.
+
+The application should communicate the issue to the user.
+
+Do not silently convert missing marks to 0.
+
+---
+
+# 9. Total Validation
+
+Never rely blindly on the uploaded Total value.
+
+Calculate:
+
+```text
+calculatedTotal =
+Math + Science + English
+```
+
+Compare the supplied Total with the calculated value.
+
+If different:
+
+```text
+Total = calculatedTotal
+```
+
+The cleaned dataset must always use the recalculated value.
+
+For the currently supplied dataset, the uploaded Totals are consistent with the subject scores, so the correction count is expected to be zero.
+
+---
+
+# 10. Duplicate Handling
+
+Implement two levels of duplicate detection.
+
+## Exact duplicate
+
+Remove rows that are completely identical.
+
+## Normalized duplicate
+
+After safe normalization, remove rows where the complete normalized student record is identical.
+
+The comparison should include:
+
+```text
+Name
+Gender
+Grade
+Math
+Science
+English
+Total
+```
+
+Do NOT deduplicate solely by:
+
+```text
+Name
+```
+
+because multiple students may legitimately share a name.
+
+---
+
+# 11. Cleaning Metadata
+
+The pipeline should produce cleaning metadata useful for the UI.
+
+Recommended metadata:
+
+```text
+originalRowCount
+cleanedRowCount
+duplicatesRemoved
+invalidRowCount
+missingValueCount
+totalCorrections
+```
+
+Optional:
+
+```text
+nameNormalizations
+genderNormalizations
+gradeNormalizations
+markNormalizations
+```
+
+This allows the interface to demonstrate that a real cleaning pipeline ran.
+
+---
+
+# 12. Student Identity
+
+After cleaning, assign every retained student a stable internal ID.
+
+The ID should be generated by the application.
+
+Do not use the row number as a long-term identity if the row order can change.
+
+The internal ID is needed for status management.
+
+Example:
+
+```text
+studentId
+```
+
+is not required to be displayed in the UI.
+
+---
+
+# 13. Status
+
+Every valid cleaned student begins as:
+
+```text
+Active
+```
+
+Status is application state, not part of the original CSV schema.
+
+Allowed values:
+
+```text
+Active
+Debarred
+```
+
+---
+
+# 14. Cleaning Pipeline Order
+
+Use this order:
+
+```text
+Raw CSV
+ ↓
+Schema validation
+ ↓
+Column normalization
+ ↓
+Text normalization
+ ↓
+Gender normalization
+ ↓
+Grade normalization
+ ↓
+Marks parsing
+ ↓
+Missing/invalid validation
+ ↓
+Total recalculation
+ ↓
+Duplicate removal
+ ↓
+Stable ID assignment
+ ↓
+Clean dataset
+```
+
+Do not mix UI logic into the cleaning functions.
+
+---
+
+# 15. Important Safety Principle
+
+Cleaning should fix formatting and deterministic data-quality problems.
+
+It should NOT invent information.
+
+Safe:
+
+```text
+"28 marks" → 28
+"Grade 11" → 11
+"male" → Male
+```
+
+Unsafe:
+
+```text
+missing Math → 50
+unknown Gender → Male
+Rohan → Rahul
+```
+
+Only make corrections that can be justified from the input data.
