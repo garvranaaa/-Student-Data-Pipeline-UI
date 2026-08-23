@@ -110,20 +110,3 @@ Rohan,Female,3,16,77,8,101
 Aditi,Female,11,28,43,46,117
 ```
 
-## Video Demo
-
-<div align="center">
-  <p><i>Demo video placeholder (≤90s walkthrough)</i></p>
-  <!-- <video src="assets/demo.mp4" width="600" controls></video> -->
-  <p>The planned 90-second demo script includes:</p>
-  <ul align="left">
-    <li>0:00 - Open Application, displaying idle state.</li>
-    <li>0:05 - Upload <code>students.csv</code>, showing the instant 3000-row clean.</li>
-    <li>0:15 - Scroll the cleaned dataset to highlight normalized values (no "marks" strings).</li>
-    <li>0:30 - Adjust the Minimum Total threshold to `250`; showcase live statistics matching the update.</li>
-    <li>0:45 - Find a qualifying student in the table and click to toggle their status to <b>Debarred</b>.</li>
-    <li>0:55 - Show the Shortlist Counter dropping by 1 immediately.</li>
-    <li>1:05 - Re-click to <b>Active</b> and watch the student re-enter the statistics.</li>
-    <li>1:15 - Click the "Export Shortlist" button and download the strictly formatted CSV.</li>
-  </ul>
-</div>
